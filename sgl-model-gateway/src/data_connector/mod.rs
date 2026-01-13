@@ -13,6 +13,7 @@ mod factory;
 mod memory;
 mod noop;
 mod oracle;
+mod plateau;
 mod postgres;
 mod redis;
 
@@ -24,3 +25,6 @@ pub use core::{
 
 pub use factory::create_storage;
 pub use memory::{MemoryConversationItemStorage, MemoryConversationStorage, MemoryResponseStorage};
+pub use plateau::{
+    PlateauConversationItemStorage, PlateauConversationStorage, PlateauResponseStorage,
+};

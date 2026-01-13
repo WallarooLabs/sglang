@@ -12,9 +12,12 @@ use super::{
     memory::{MemoryConversationItemStorage, MemoryConversationStorage, MemoryResponseStorage},
     noop::{NoOpConversationItemStorage, NoOpConversationStorage, NoOpResponseStorage},
     oracle::{OracleConversationItemStorage, OracleConversationStorage, OracleResponseStorage},
+    PlateauConversationItemStorage, PlateauConversationStorage, PlateauResponseStorage,
 };
 use crate::{
-    config::{HistoryBackend, OracleConfig, PostgresConfig, RedisConfig, RouterConfig},
+    config::{
+        HistoryBackend, OracleConfig, PlateauConfig, PostgresConfig, RedisConfig, RouterConfig,
+    },
     data_connector::{
         postgres::{
             PostgresConversationItemStorage, PostgresConversationStorage, PostgresResponseStorage,
@@ -133,6 +136,14 @@ pub fn create_storage(config: &RouterConfig) -> Result<StorageTuple, String> {
 
             Ok(storages)
         }
+        HistoryBackend::Plateau => {
+            let plateau_cfg = config
+                .plateau
+                .clone()
+                .ok_or("Plateau configuration is required when history_backend=plateau")?;
+            create_plateau_storage(&plateau_cfg)
+                .inspect(|_storages| info!("Data connector initialized successfully: Plateau"))
+        }
     }
 }
 
@@ -146,6 +157,20 @@ fn create_oracle_storage(oracle_cfg: &OracleConfig) -> Result<StorageTuple, Stri
 
     let conversation_item_storage = OracleConversationItemStorage::new(oracle_cfg.clone())
         .map_err(|err| format!("failed to initialize Oracle conversation item storage: {err}"))?;
+
+    Ok((
+        Arc::new(response_storage),
+        Arc::new(conversation_storage),
+        Arc::new(conversation_item_storage),
+    ))
+}
+
+fn create_plateau_storage(_cfg: &PlateauConfig) -> Result<StorageTuple, String> {
+    let response_storage = PlateauResponseStorage::new();
+
+    let conversation_storage = PlateauConversationStorage::new();
+
+    let conversation_item_storage = PlateauConversationItemStorage::new();
 
     Ok((
         Arc::new(response_storage),

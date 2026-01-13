@@ -1,7 +1,7 @@
 use super::{
     CircuitBreakerConfig, ConfigError, ConfigResult, DiscoveryConfig, HealthCheckConfig,
-    HistoryBackend, MetricsConfig, OracleConfig, PolicyConfig, PostgresConfig, RedisConfig,
-    RetryConfig, RouterConfig, RoutingMode, TokenizerCacheConfig, TraceConfig,
+    HistoryBackend, MetricsConfig, OracleConfig, PlateauConfig, PolicyConfig, PostgresConfig,
+    RedisConfig, RetryConfig, RouterConfig, RoutingMode, TokenizerCacheConfig, TraceConfig,
 };
 use crate::{core::ConnectionMode, mcp::McpConfig};
 
@@ -541,6 +541,14 @@ impl RouterConfigBuilder {
         if let Some(cfg) = postgres {
             self.config.history_backend = HistoryBackend::Postgres;
             self.config.postgres = Some(cfg);
+        }
+        self
+    }
+
+    pub fn maybe_plateau(mut self, plateau: Option<PlateauConfig>) -> Self {
+        if let Some(cfg) = plateau {
+            self.config.history_backend = HistoryBackend::Plateau;
+            self.config.plateau = Some(cfg);
         }
         self
     }

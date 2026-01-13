@@ -6,9 +6,9 @@ use smg::{
     auth::{ApiKeyEntry, ControlPlaneAuthConfig, JwtConfig, Role},
     config::{
         CircuitBreakerConfig, ConfigError, ConfigResult, DiscoveryConfig, HealthCheckConfig,
-        HistoryBackend, ManualAssignmentMode, MetricsConfig, OracleConfig, PolicyConfig,
-        PostgresConfig, RedisConfig, RetryConfig, RouterConfig, RoutingMode, TokenizerCacheConfig,
-        TraceConfig,
+        HistoryBackend, ManualAssignmentMode, MetricsConfig, OracleConfig, PlateauConfig,
+        PolicyConfig, PostgresConfig, RedisConfig, RetryConfig, RouterConfig, RoutingMode,
+        TokenizerCacheConfig, TraceConfig,
     },
     core::ConnectionMode,
     mesh::service::MeshServerConfig,
@@ -430,7 +430,7 @@ struct CliArgs {
     backend: Backend,
 
     /// History storage backend
-    #[arg(long, default_value = "memory", value_parser = ["memory", "none", "oracle", "postgres", "redis"], help_heading = "Backend")]
+    #[arg(long, default_value = "memory", value_parser = ["memory", "none", "oracle", "plateau", "postgres", "redis"], help_heading = "Backend")]
     history_backend: String,
 
     /// Enable WebAssembly support
@@ -478,6 +478,11 @@ struct CliArgs {
     /// Maximum PostgreSQL connection pool size
     #[arg(long, help_heading = "PostgreSQL Database")]
     postgres_pool_max_size: Option<usize>,
+
+    // ==================== Plateau Database ====================
+    /// Plateau server host
+    #[arg(long, help_heading = "Plateau Database")]
+    plateau_host: Option<String>,
 
     // ==================== Redis Database ====================
     /// Redis connection URL
@@ -839,6 +844,16 @@ impl CliArgs {
         Ok(pcf)
     }
 
+    fn build_plateau_config(&self) -> ConfigResult<PlateauConfig> {
+        let host = self
+            .plateau_host
+            .clone()
+            .ok_or(ConfigError::MissingRequired {
+                field: "plateau_host".to_string(),
+            })?;
+        Ok(PlateauConfig { host })
+    }
+
     fn build_redis_config(&self) -> ConfigResult<RedisConfig> {
         let url = self.redis_url.clone().unwrap_or_default();
         let pool_max = self.redis_pool_max_size.unwrap_or(16);
@@ -937,6 +952,7 @@ impl CliArgs {
         let history_backend = match self.history_backend.as_str() {
             "none" => HistoryBackend::None,
             "oracle" => HistoryBackend::Oracle,
+            "plateau" => HistoryBackend::Plateau,
             "postgres" => HistoryBackend::Postgres,
             "redis" => HistoryBackend::Redis,
             _ => HistoryBackend::Memory,
@@ -944,6 +960,11 @@ impl CliArgs {
 
         let oracle = if history_backend == HistoryBackend::Oracle {
             Some(self.build_oracle_config()?)
+        } else {
+            None
+        };
+        let plateau = if history_backend == HistoryBackend::Plateau {
+            Some(self.build_plateau_config()?)
         } else {
             None
         };
@@ -1014,6 +1035,7 @@ impl CliArgs {
             .maybe_tokenizer_path(self.tokenizer_path.as_ref())
             .maybe_chat_template(self.chat_template.as_ref())
             .maybe_oracle(oracle)
+            .maybe_plateau(plateau)
             .maybe_postgres(postgres)
             .maybe_redis(redis)
             .maybe_reasoning_parser(self.reasoning_parser.as_ref())
